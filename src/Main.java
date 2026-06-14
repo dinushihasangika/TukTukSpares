@@ -29,7 +29,7 @@ public class Main extends Application {
 
         Tab cartTab = new Tab("Point of Sale");
         cartTab.setClosable(false);
-        cartTab.setContent(new Label("Cart coming soon"));
+        cartTab.setContent(buildCartTab());
 
         tabPane.getTabs().addAll(inventoryTab, dealersTab, cartTab);
 
@@ -105,7 +105,6 @@ public class Main extends Application {
             temp.remove(index);
         }
 
-        // Bubble sort by location
         for (int i = 0; i < selected.size() - 1; i++) {
             for (int j = 0; j < selected.size() - 1 - i; j++) {
                 if (selected.get(j).getLocation()
@@ -139,6 +138,133 @@ public class Main extends Application {
         table.getItems().addAll(selected);
 
         vbox.getChildren().addAll(title, table);
+        return vbox;
+    }
+
+    private VBox buildCartTab() {
+        VBox vbox = new VBox(10);
+        vbox.setStyle("-fx-padding: 10;");
+
+        List<CartItem> cart = new ArrayList<>();
+
+        ComboBox<String> partCombo = new ComboBox<>();
+        for (Part p : inventoryManager.getParts()) {
+            partCombo.getItems().add(p.getCode() + " - " + p.getName());
+        }
+        partCombo.setPromptText("Select a part");
+
+        TextField qtyField = new TextField();
+        qtyField.setPromptText("Quantity");
+
+        Button addButton = new Button("Add to Cart");
+
+        TableView<CartItem> cartTable = new TableView<>();
+
+        TableColumn<CartItem, String> codeCol = new TableColumn<>("Code");
+        codeCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getPart().getCode()));
+
+        TableColumn<CartItem, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getPart().getName()));
+
+        TableColumn<CartItem, String> qtyCol = new TableColumn<>("Qty");
+        qtyCol.setCellValueFactory(d ->
+                new SimpleStringProperty(String.valueOf(d.getValue().getQuantity())));
+
+        TableColumn<CartItem, String> subtotalCol = new TableColumn<>("Subtotal");
+        subtotalCol.setCellValueFactory(d ->
+                new SimpleStringProperty("Rs." + d.getValue().getSubtotal()));
+
+        cartTable.getColumns().addAll(codeCol, nameCol, qtyCol, subtotalCol);
+
+        Label totalLabel = new Label("Total: Rs.0.0");
+        Label messageLabel = new Label();
+        messageLabel.setStyle("-fx-text-fill: red;");
+        Button checkoutButton = new Button("Checkout");
+
+        addButton.setOnAction(e -> {
+            messageLabel.setStyle("-fx-text-fill: red;");
+            messageLabel.setText("");
+            String selected = partCombo.getValue();
+            if (selected == null) {
+                messageLabel.setText("Please select a part!");
+                return;
+            }
+            String code = selected.split(" - ")[0];
+            Part part = inventoryManager.findPart(code);
+
+            int qty = 0;
+            try {
+                qty = Integer.parseInt(qtyField.getText().trim());
+            } catch (NumberFormatException ex) {
+                messageLabel.setText("Invalid quantity!");
+                return;
+            }
+
+            if (qty <= 0) {
+                messageLabel.setText("Quantity must be greater than 0!");
+                return;
+            }
+            if (qty > part.getQuantity()) {
+                messageLabel.setText("Not enough stock! Available: " + part.getQuantity());
+                return;
+            }
+
+            boolean found = false;
+            for (CartItem item : cart) {
+                if (item.getPart().getCode().equals(code)) {
+                    item.setQuantity(item.getQuantity() + qty);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                cart.add(new CartItem(part, qty));
+            }
+
+            cartTable.getItems().clear();
+            cartTable.getItems().addAll(cart);
+
+            double total = 0;
+            for (CartItem item : cart) {
+                total += item.getSubtotal();
+            }
+
+            boolean hasEngine = false;
+            boolean hasElectrical = false;
+            for (CartItem item : cart) {
+                if (item.getPart().getCategory().equalsIgnoreCase("Engine")) hasEngine = true;
+                if (item.getPart().getCategory().equalsIgnoreCase("Electrical")) hasElectrical = true;
+            }
+            if (hasEngine && hasElectrical) {
+                total = total * 0.90;
+                totalLabel.setText("Total: Rs." + total + " (10% synergy discount!)");
+            } else {
+                totalLabel.setText("Total: Rs." + total);
+            }
+            qtyField.clear();
+        });
+
+        checkoutButton.setOnAction(e -> {
+            if (cart.isEmpty()) {
+                messageLabel.setText("Cart is empty!");
+                return;
+            }
+            for (CartItem item : cart) {
+                item.getPart().setQuantity(
+                        item.getPart().getQuantity() - item.getQuantity());
+                AuditLogger.log("CHECKOUT", item.getPart().getCode(), item.getQuantity());
+            }
+            cart.clear();
+            cartTable.getItems().clear();
+            totalLabel.setText("Total: Rs.0.0");
+            messageLabel.setStyle("-fx-text-fill: green;");
+            messageLabel.setText("Checkout successful!");
+        });
+
+        HBox inputRow = new HBox(10, partCombo, qtyField, addButton);
+        vbox.getChildren().addAll(inputRow, cartTable, totalLabel, messageLabel, checkoutButton);
         return vbox;
     }
 
