@@ -25,7 +25,7 @@ public class Main extends Application {
 
         Tab dealersTab = new Tab("Dealers");
         dealersTab.setClosable(false);
-        dealersTab.setContent(new Label("Dealers coming soon"));
+        dealersTab.setContent(buildDealersTab());
 
         Tab cartTab = new Tab("Point of Sale");
         cartTab.setClosable(false);
@@ -85,6 +85,60 @@ public class Main extends Application {
                 inventoryManager.getTotalValue());
 
         vbox.getChildren().addAll(lowStockLabel, table, summaryLabel);
+        return vbox;
+    }
+
+    private VBox buildDealersTab() {
+        VBox vbox = new VBox(10);
+        vbox.setStyle("-fx-padding: 10;");
+
+        Label title = new Label("Randomly Selected Dealers");
+        title.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+
+        List<Dealer> selected = new ArrayList<>();
+        List<Dealer> temp = new ArrayList<>(dealers);
+        Random random = new Random();
+
+        while (selected.size() < 4 && !temp.isEmpty()) {
+            int index = random.nextInt(temp.size());
+            selected.add(temp.get(index));
+            temp.remove(index);
+        }
+
+        // Bubble sort by location
+        for (int i = 0; i < selected.size() - 1; i++) {
+            for (int j = 0; j < selected.size() - 1 - i; j++) {
+                if (selected.get(j).getLocation()
+                        .compareToIgnoreCase(selected.get(j + 1).getLocation()) > 0) {
+                    Dealer temp2 = selected.get(j);
+                    selected.set(j, selected.get(j + 1));
+                    selected.set(j + 1, temp2);
+                }
+            }
+        }
+
+        TableView<Dealer> table = new TableView<>();
+
+        TableColumn<Dealer, String> codeCol = new TableColumn<>("Code");
+        codeCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getCode()));
+
+        TableColumn<Dealer, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getName()));
+
+        TableColumn<Dealer, String> phoneCol = new TableColumn<>("Phone");
+        phoneCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getPhone()));
+
+        TableColumn<Dealer, String> locationCol = new TableColumn<>("Location");
+        locationCol.setCellValueFactory(d ->
+                new SimpleStringProperty(d.getValue().getLocation()));
+
+        table.getColumns().addAll(codeCol, nameCol, phoneCol, locationCol);
+        table.getItems().addAll(selected);
+
+        vbox.getChildren().addAll(title, table);
         return vbox;
     }
 
