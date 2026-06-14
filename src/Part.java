@@ -34,7 +34,9 @@ public class Part {
     // Setters
     public void setQuantity(int quantity) { this.quantity = quantity; }
     public void setPrice(double price) { this.price = price; }
+
+    // NEW SETTERS — needed for updatePart() to work
+    public void setName(String name) { this.name = name; }
+    public void setBrand(String brand) { this.brand = brand; }
+    public void setCategory(String category) { this.category = category; }
 }
-
-
-
